@@ -1,13 +1,13 @@
 {
   "canisters": {
-    "blog_board": {
+    "user_profiles_board": {
       "main": "src/index.ts",
       "type": "custom",
-      "build": "npx azle blog_board",
+      "build": "npx azle user_profiles_board",
       "root": "src",
       "ts": "src/index.ts",
       "candid": "src/index.did",
-      "wasm": ".azle/blog_board/blog_board.wasm.gz"
+      "wasm": ".azle/user_profiles_board/user_profiles_board.wasm.gz"
     }
   }
 }

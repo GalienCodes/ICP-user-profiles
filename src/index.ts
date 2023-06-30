@@ -1,130 +1,144 @@
 import { $query, $update, Record, StableBTreeMap, Vec, match, Result, nat64, ic, Opt } from 'azle';
 import { v4 as uuidv4 } from 'uuid';
 
-type Comment = Record<{
+type UserProfile = Record<{
     id: string;
-    postId: string;
-    text: string;
-    createdAt: nat64;
-}>
-
-type CommentPayload = Record<{
-    postId: string;
-    text: string;
-}>
-
-type BlogPost = Record<{
-    id: string;
-    title: string;
-    body: string;
-    attachmentURL: string;
+    username: string;
+    bio: string;
+    followers: Vec<string>;
+    following: Vec<string>;
     createdAt: nat64;
     updatedAt: Opt<nat64>;
-    comments: StableBTreeMap<string, Comment>;
-    likes: number;
 }>
 
-type BlogPostPayload = Record<{
-    title: string;
-    body: string;
-    attachmentURL: string;
+type UserProfilePayload = Record<{
+    username: string;
+    bio: string;
 }>
 
-const blogPostStorage = new StableBTreeMap<string, BlogPost>(0, 44, 1024);
+const userProfileStorage = new StableBTreeMap<string, UserProfile>(0, 44, 1024);
 
 $query;
-export function getBlogPosts(): Result<Vec<BlogPost>, string> {
-    return Result.Ok(blogPostStorage.values());
+export function getUserProfiles(): Result<Vec<UserProfile>, string> {
+    return Result.Ok(userProfileStorage.values());
 }
 
 $query;
-export function getBlogPost(id: string): Result<BlogPost, string> {
-    return match(blogPostStorage.get(id), {
-        Some: (blogPost) => Result.Ok<BlogPost, string>(blogPost),
-        None: () => Result.Err<BlogPost, string>(`A blog post with id=${id} not found`)
+export function getUserProfile(id: string): Result<UserProfile, string> {
+    return match(userProfileStorage.get(id), {
+        Some: (profile) => Result.Ok<UserProfile, string>(profile),
+        None: () => Result.Err<UserProfile, string>(`a user profile with id=${id} not found`)
     });
 }
 
 $update;
-export function addBlogPost(payload: BlogPostPayload): Result<BlogPost, string> {
-    const blogPost: BlogPost = { id: uuidv4(), createdAt: ic.time(), updatedAt: Opt.None, comments: new StableBTreeMap<string, Comment>(0, 44, 1024), likes: 0, ...payload };
-    blogPostStorage.insert(blogPost.id, blogPost);
-    return Result.Ok(blogPost);
+export function createUserProfile(payload: UserProfilePayload): Result<UserProfile, string> {
+    const userProfile: UserProfile = {
+        id: uuidv4(),
+        createdAt: ic.time(),
+        updatedAt: Opt.None,
+        followers: Vec.empty<string>(),
+        following: Vec.empty<string>(),
+        ...payload
+    };
+    userProfileStorage.insert(userProfile.id, userProfile);
+    return Result.Ok(userProfile);
 }
 
 $update;
-export function updateBlogPost(id: string, payload: BlogPostPayload): Result<BlogPost, string> {
-    return match(blogPostStorage.get(id), {
-        Some: (blogPost) => {
-            const updatedBlogPost: BlogPost = {...blogPost, ...payload, updatedAt: Opt.Some(ic.time())};
-            blogPostStorage.insert(blogPost.id, updatedBlogPost);
-            return Result.Ok<BlogPost, string>(updatedBlogPost);
+export function updateUserProfile(id: string, payload: UserProfilePayload): Result<UserProfile, string> {
+    return match(userProfileStorage.get(id), {
+        Some: (profile) => {
+            const updatedProfile: UserProfile = { ...profile, ...payload, updatedAt: Opt.Some(ic.time()) };
+            userProfileStorage.insert(profile.id, updatedProfile);
+            return Result.Ok<UserProfile, string>(updatedProfile);
         },
-        None: () => Result.Err<BlogPost, string>(`Couldn't update a blog post with id=${id}. Blog post not found`)
+        None: () => Result.Err<UserProfile, string>(`couldn't update a user profile with id=${id}. Profile not found`)
     });
 }
 
 $update;
-export function deleteBlogPost(id: string): Result<BlogPost, string> {
-    return match(blogPostStorage.remove(id), {
-        Some: (deletedBlogPost) => Result.Ok<BlogPost, string>(deletedBlogPost),
-        None: () => Result.Err<BlogPost, string>(`Couldn't delete a blog post with id=${id}. Blog post not found.`)
+export function deleteUserProfile(id: string): Result<UserProfile, string> {
+    return match(userProfileStorage.remove(id), {
+        Some: (deletedProfile) => Result.Ok<UserProfile, string>(deletedProfile),
+        None: () => Result.Err<UserProfile, string>(`couldn't delete a user profile with id=${id}. Profile not found.`)
     });
 }
 
 $update;
-export function addComment(postId: string, payload: CommentPayload): Result<Comment, string> {
-    const comment: Comment = { id: uuidv4(), postId, createdAt: ic.time(), ...payload };
-    const blogPost = blogPostStorage.get(postId);
-    if (blogPost) {
-        blogPost.comments.insert(comment.id, comment);
-        return Result.Ok(comment);
-    }
-    return Result.Err<Comment, string>(`Couldn't add a comment. Blog post with id=${postId} not found.`);
-}
+export function followProfile(userId: string, profileId: string): Result<UserProfile, string> {
+    const userResult = getUserProfile(userId);
+    const profileResult = getUserProfile(profileId);
 
-$query;
-export function getComments(postId: string): Result<Vec<Comment>, string> {
-    const blogPost = blogPostStorage.get(postId);
-    if (blogPost) {
-        return Result.Ok(blogPost.comments.values());
+    if (userResult.isErr()) {
+        return Result.Err<UserProfile, string>(`User profile with id=${userId} not found.`);
     }
-    return Result.Err<Vec<Comment>, string>(`Couldn't retrieve comments. Blog post with id=${postId} not found.`);
-}
 
-$update;
-export function deleteComment(postId: string, commentId: string): Result<Comment, string> {
-    const blogPost = blogPostStorage.get(postId);
-    if (blogPost) {
-        const deletedComment = blogPost.comments.remove(commentId);
-        if (deletedComment) {
-            return Result.Ok(deletedComment);
-        }
-        return Result.Err<Comment, string>(`Couldn't delete a comment with id=${commentId}. Comment not found.`);
+    if (profileResult.isErr()) {
+        return Result.Err<UserProfile, string>(`Profile with id=${profileId} not found.`);
     }
-    return Result.Err<Comment, string>(`Couldn't delete a comment. Blog post with id=${postId} not found.`);
-}
 
-$update;
-export function likeBlogPost(id: string): Result<BlogPost, string> {
-    const blogPost = blogPostStorage.get(id);
-    if (blogPost) {
-        blogPost.likes += 1;
-        blogPostStorage.insert(id, blogPost);
-        return Result.Ok(blogPost);
+    const user = userResult.unwrap();
+    const profile = profileResult.unwrap();
+
+    if (user.following.includes(profileId)) {
+        return Result.Ok<UserProfile, string>(user);
     }
-    return Result.Err<BlogPost, string>(`Couldn't like a blog post. Blog post with id=${id} not found.`);
+
+    const updatedUser: UserProfile = {
+        ...user,
+        following: user.following.push(profileId),
+        updatedAt: Opt.Some(ic.time())
+    };
+
+    const updatedProfile: UserProfile = {
+        ...profile,
+        followers: profile.followers.push(userId),
+        updatedAt: Opt.Some(ic.time())
+    };
+
+    userProfileStorage.insert(updatedUser.id, updatedUser);
+    userProfileStorage.insert(updatedProfile.id, updatedProfile);
+
+    return Result.Ok<UserProfile, string>(updatedUser);
 }
 
 $update;
-export function unlikeBlogPost(id: string): Result<BlogPost, string> {
-    const blogPost = blogPostStorage.get(id);
-    if (blogPost && blogPost.likes > 0) {
-        blogPost.likes -= 1;
-        blogPostStorage.insert(id, blogPost);
-        return Result.Ok(blogPost);
+export function unfollowProfile(userId: string, profileId: string): Result<UserProfile, string> {
+    const userResult = getUserProfile(userId);
+    const profileResult = getUserProfile(profileId);
+
+    if (userResult.isErr()) {
+        return Result.Err<UserProfile, string>(`User profile with id=${userId} not found.`);
     }
-    return Result.Err<BlogPost, string>(`Couldn't unlike a blog post. Blog post with id=${id} not found or no likes to remove.`);
+
+    if (profileResult.isErr()) {
+        return Result.Err<UserProfile, string>(`Profile with id=${profileId} not found.`);
+    }
+
+    const user = userResult.unwrap();
+    const profile = profileResult.unwrap();
+
+    if (!user.following.includes(profileId)) {
+        return Result.Ok<UserProfile, string>(user);
+    }
+
+    const updatedUser: UserProfile = {
+        ...user,
+        following: user.following.filter((id) => id !== profileId),
+        updatedAt: Opt.Some(ic.time())
+    };
+
+    const updatedProfile: UserProfile = {
+        ...profile,
+        followers: profile.followers.filter((id) => id !== userId),
+        updatedAt: Opt.Some(ic.time())
+    };
+
+    userProfileStorage.insert(updatedUser.id, updatedUser);
+    userProfileStorage.insert(updatedProfile.id, updatedProfile);
+
+    return Result.Ok<UserProfile, string>(updatedUser);
 }
 
 // a workaround to make uuid package work with Azle
