@@ -26,7 +26,7 @@ export function getUserProfiles(): Result<Vec<UserProfile>, string> {
 $query;
 export function getUserProfile(id: string): Result<UserProfile, string> {
     return match(userProfileStorage.get(id), {
-        Some: (profile) => Result.Ok<UserProfile, string>(profile),
+        Some: (profile: any) => Result.Ok<UserProfile, string>(profile),
         None: () => Result.Err<UserProfile, string>(`a user profile with id=${id} not found`)
     });
 }
@@ -37,8 +37,8 @@ export function createUserProfile(payload: UserProfilePayload): Result<UserProfi
         id: uuidv4(),
         createdAt: ic.time(),
         updatedAt: Opt.None,
-        followers: Vec.empty<string>(),
-        following: Vec.empty<string>(),
+        followers: [],
+        following: [],
         ...payload
     };
     userProfileStorage.insert(userProfile.id, userProfile);
@@ -48,7 +48,7 @@ export function createUserProfile(payload: UserProfilePayload): Result<UserProfi
 $update;
 export function updateUserProfile(id: string, payload: UserProfilePayload): Result<UserProfile, string> {
     return match(userProfileStorage.get(id), {
-        Some: (profile) => {
+        Some: (profile: any) => {
             const updatedProfile: UserProfile = { ...profile, ...payload, updatedAt: Opt.Some(ic.time()) };
             userProfileStorage.insert(profile.id, updatedProfile);
             return Result.Ok<UserProfile, string>(updatedProfile);
@@ -60,47 +60,31 @@ export function updateUserProfile(id: string, payload: UserProfilePayload): Resu
 $update;
 export function deleteUserProfile(id: string): Result<UserProfile, string> {
     return match(userProfileStorage.remove(id), {
-        Some: (deletedProfile) => Result.Ok<UserProfile, string>(deletedProfile),
+        Some: (deletedProfile: any) => Result.Ok<UserProfile, string>(deletedProfile),
         None: () => Result.Err<UserProfile, string>(`couldn't delete a user profile with id=${id}. Profile not found.`)
     });
 }
 
 $update;
 export function followProfile(userId: string, profileId: string): Result<UserProfile, string> {
-    const userResult = getUserProfile(userId);
-    const profileResult = getUserProfile(profileId);
+    const user1: UserProfile = userProfileStorage.get(userId);
+    const user2: UserProfile = userProfileStorage.get(profileId);
 
-    if (userResult.isErr()) {
-        return Result.Err<UserProfile, string>(`User profile with id=${userId} not found.`);
+    if (user1.following.includes(profileId)) {
+        return Result.Ok<UserProfile, string>(user1);
     }
 
-    if (profileResult.isErr()) {
-        return Result.Err<UserProfile, string>(`Profile with id=${profileId} not found.`);
-    }
-
-    const user = userResult.unwrap();
-    const profile = profileResult.unwrap();
-
-    if (user.following.includes(profileId)) {
-        return Result.Ok<UserProfile, string>(user);
-    }
-
-    const updatedUser: UserProfile = {
-        ...user,
-        following: user.following.push(profileId),
-        updatedAt: Opt.Some(ic.time())
-    };
-
-    const updatedProfile: UserProfile = {
-        ...profile,
-        followers: profile.followers.push(userId),
-        updatedAt: Opt.Some(ic.time())
-    };
-
-    userProfileStorage.insert(updatedUser.id, updatedUser);
-    userProfileStorage.insert(updatedProfile.id, updatedProfile);
-
-    return Result.Ok<UserProfile, string>(updatedUser);
+    return match(user1, {
+        Some: (user: any) => {
+            const user1Profile: UserProfile = {
+                ...user,
+                following: user.following.push(profileId)
+            }
+            userProfileStorage.insert(user.id, user1Profile);
+            return Result.Ok<UserProfile, string>(user1Profile);
+        },
+        None: Result<UserProfile, string>("Unable to carry out the following function")
+    })
 }
 
 $update;
