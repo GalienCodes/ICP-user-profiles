@@ -54,27 +54,34 @@ dfx deploy
 ```
 ### Canister Test Guide
 1. **getUserProfiles**
+
 To retrieve all user profiles, run the following command:
 ```bash
 dfx canister call <canister-name> getUserProfiles '()'
 ```
 This command will return a list of user profiles.
 
+
 2. **getUserProfile by ID**
+
 To retrieve a specific user profile, run the following command:
 ```bash
 dfx canister call <canister-name> getUserProfile '("profile-id")'
 ```
 Replace `<profile-id>` with the ID of the user profile you want to retrieve. This command will return the details of the specified user profile.
 
+
 3. **createUserProfile**
+
 To create a new user profile, run the following command:
 ```bash
 dfx canister call <canister-name> createUserProfile '(record { "username" = "<username>"; "bio" = "<bio>" })'
 ```
 Replace `<username>` and `<bio>` with the desired username and bio for the new user profile. This command will create a new user profile and return its details.
 
+
 4. **updateUserProfile**
+
 To update an existing user profile, run the following command:
 ```bash
 dfx canister call <canister-name> updateUserProfile '("profile-id", record { "username"= "new-username"; "bio" = "new-bio" }'
@@ -82,7 +89,9 @@ dfx canister call <canister-name> updateUserProfile '("profile-id", record { "us
 Replace `profile-id` with the ID of the user profile you want to update. Replace `<new-username>` and `new-bio` with the updated username and bio for the user profile.
 </br> This command will update the specified user profile and return its updated details.
 
+
 5. **deleteUserProfile**
+
 To delete a user profile, run the following command:
 ```bash
 dfx canister call <canister-name> deleteUserProfile '("profile-id")'
@@ -90,7 +99,9 @@ dfx canister call <canister-name> deleteUserProfile '("profile-id")'
 Replace `profile-id` with the ID of the user profile you want to delete.
 </br>  This command will delete the specified user profile.
 
+
 6. **followProfile**
+
 To follow another user profile, run the following command:
 ```bash
 dfx canister call <canister-name> followProfile '("user-id", "profile-id")'
@@ -98,7 +109,9 @@ dfx canister call <canister-name> followProfile '("user-id", "profile-id")'
 Replace `user-id` with the ID of the user profile that wants to follow another profile, and `profile-id` with the ID of the profile to be followed.
 </br> This command will establish the following relationship between the user profiles.
 
+
 7. **unfollowProfile**
+
 To unfollow a user profile, run the following command:
 ```bash
 dfx canister call <canister-name> unfollowProfile '("user-id", "profile-id")'
