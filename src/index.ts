@@ -67,62 +67,84 @@ export function deleteUserProfile(id: string): Result<UserProfile, string> {
 
 $update;
 export function followProfile(userId: string, profileId: string): Result<UserProfile, string> {
-    const user1: UserProfile = userProfileStorage.get(userId);
-    const user2: UserProfile = userProfileStorage.get(profileId);
-
-    if (user1.following.includes(profileId)) {
-        return Result.Ok<UserProfile, string>(user1);
-    }
-
-    return match(user1, {
-        Some: (user: any) => {
-            const user1Profile: UserProfile = {
-                ...user,
-                following: user.following.push(profileId)
+    const user1Following = match(userProfileStorage.get(userId), {
+        Some: (user) => {
+            if(user.following.includes(profileId)) {
+                return Result.Ok<UserProfile, string>(user)
+            } else {
+                const userFollowing: Vec<string> = user.following;
+                userFollowing.push(profileId);
+                const user1Profile: UserProfile = {
+                    ...user,
+                    following: userFollowing
+                }
+                userProfileStorage.insert(user.id, user1Profile);
+                return Result.Ok<UserProfile, string>(user1Profile);
             }
-            userProfileStorage.insert(user.id, user1Profile);
-            return Result.Ok<UserProfile, string>(user1Profile);
         },
-        None: Result<UserProfile, string>("Unable to carry out the following function")
+        None: () => Result.Err<UserProfile, string>("Unable to carry out the following function")
     })
+
+    match(userProfileStorage.get(profileId), {
+        Some: (user) => {
+            if(user.following.includes(userId)) {
+                return Result.Ok<UserProfile, string>(user)
+            } else {
+                const userFollowers: Vec<string> = user.followers;
+                userFollowers.push(userId);
+                const user2Profile: UserProfile = {
+                    ...user,
+                    followers: userFollowers
+                }
+                userProfileStorage.insert(user.id, user2Profile);
+                return Result.Ok<UserProfile, string>(user2Profile);
+            }
+        },
+        None: () => Result.Err<UserProfile, string>("Unable to carry out the following function")
+    })
+
+    return user1Following
 }
 
 $update;
 export function unfollowProfile(userId: string, profileId: string): Result<UserProfile, string> {
-    const userResult = getUserProfile(userId);
-    const profileResult = getUserProfile(profileId);
+    const user1Unfollowing = match(userProfileStorage.get(userId), {
+        Some: (user) => {
+            if(user.following.includes(profileId)) {
+                const unfollowedUserIndex = user.following.indexOf(profileId)
+                user.following.splice(unfollowedUserIndex, 0)
+                const user1Profile: UserProfile = {
+                    ...user,
+                    following: user.following
+                }
+                userProfileStorage.insert(user.id, user1Profile);
+                return Result.Ok<UserProfile, string>(user1Profile);
+            } else {
+                return Result.Ok<UserProfile, string>(user)
+            }
+        },
+        None: () => Result.Err<UserProfile, string>("Unable to carry out the following function")
+    })
 
-    if (userResult.isErr()) {
-        return Result.Err<UserProfile, string>(`User profile with id=${userId} not found.`);
-    }
+    match(userProfileStorage.get(profileId), {
+        Some: (user) => {
+            if(user.followers.includes(userId)) {
+                const unfollowingUserIndex = user.followers.indexOf(userId)
+                user.followers.splice(unfollowingUserIndex, 0)
+                const user1Profile: UserProfile = {
+                    ...user,
+                    followers: user.followers
+                }
+                userProfileStorage.insert(user.id, user1Profile);
+                return Result.Ok<UserProfile, string>(user1Profile);
+            } else {
+                return Result.Ok<UserProfile, string>(user)
+            }
+        },
+        None: () => Result.Err<UserProfile, string>(`Unable to remove the follower with the id = ${userId}`)
+    })
 
-    if (profileResult.isErr()) {
-        return Result.Err<UserProfile, string>(`Profile with id=${profileId} not found.`);
-    }
-
-    const user = userResult.unwrap();
-    const profile = profileResult.unwrap();
-
-    if (!user.following.includes(profileId)) {
-        return Result.Ok<UserProfile, string>(user);
-    }
-
-    const updatedUser: UserProfile = {
-        ...user,
-        following: user.following.filter((id) => id !== profileId),
-        updatedAt: Opt.Some(ic.time())
-    };
-
-    const updatedProfile: UserProfile = {
-        ...profile,
-        followers: profile.followers.filter((id) => id !== userId),
-        updatedAt: Opt.Some(ic.time())
-    };
-
-    userProfileStorage.insert(updatedUser.id, updatedUser);
-    userProfileStorage.insert(updatedProfile.id, updatedProfile);
-
-    return Result.Ok<UserProfile, string>(updatedUser);
+    return user1Unfollowing
 }
 
 // a workaround to make uuid package work with Azle
