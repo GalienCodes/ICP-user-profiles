@@ -1,5 +1,4 @@
 type UserProfile = record {
-  id : text;
   bio : text;
   username : text;
   createdAt : nat64;
@@ -12,10 +11,10 @@ type _AzleResult = variant { Ok : UserProfile; Err : text };
 type _AzleResult_1 = variant { Ok : vec UserProfile; Err : text };
 service : () -> {
   createUserProfile : (UserProfilePayload) -> (_AzleResult);
-  deleteUserProfile : (text) -> (_AzleResult);
-  followProfile : (text, text) -> (_AzleResult);
+  deleteUserProfile : () -> (_AzleResult);
+  followProfile : (text) -> (_AzleResult);
   getUserProfile : (text) -> (_AzleResult) query;
   getUserProfiles : () -> (_AzleResult_1) query;
-  unfollowProfile : (text, text) -> (_AzleResult);
-  updateUserProfile : (text, UserProfilePayload) -> (_AzleResult);
+  unfollowProfile : (text) -> (_AzleResult);
+  updateUserProfile : (UserProfilePayload) -> (_AzleResult);
 }
